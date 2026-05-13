@@ -86,7 +86,7 @@
 //!
 //! | Flag | Description |
 //! |------|-------------|
-//! | `serde` | Enables `serde::Serialize` and `serde::Deserialize` on [`BloomFilter`] |
+//! | `serde` | Enables `serde::Serialize` and `serde::Deserialize` on all filter types |
 //!
 //! Enable serde support in `Cargo.toml`:
 //!

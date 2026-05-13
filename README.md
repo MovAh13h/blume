@@ -17,7 +17,7 @@ positives is acceptable in exchange for significant memory savings.
 
 ```toml
 [dependencies]
-blume = "0.1"
+blume = "0.2"
 ```
 
 ## Quick start
@@ -170,6 +170,7 @@ than the standard filter.
 | `CountingBloomFilter` | No | Yes | No | 8× | deletion, high accuracy |
 | `CuckooFilter` | No | Yes | No | ~1× | deletion, memory-efficient |
 | `AtomicBloomFilter` | Yes | No | No | 1× | concurrent insert + lookup |
+| `AtomicCountingBloomFilter` | Yes | Yes | No | 8× | concurrent insert + deletion |
 | `ScalableBloomFilter` | No | No | Yes | 1×+ | unknown or unbounded item count |
 
 ## Constructors
@@ -179,7 +180,7 @@ than the standard filter.
 | `BloomFilter::new(n, p)` | Normal use — optimal `m` and `k` computed automatically |
 | `BloomFilter::with_params(bits, hash_fns)` | Expert use — match the exact geometry of an existing filter (e.g. deserialising from storage) |
 
-Same constructors exist on `CountingBloomFilter` and `AtomicBloomFilter`.
+Same constructors exist on `CountingBloomFilter`, `AtomicBloomFilter`, and `AtomicCountingBloomFilter`.
 
 ## Concurrent use
 
@@ -214,19 +215,19 @@ Import everything at once:
 
 ```rust
 use blume::prelude::*;
-// BloomFilter, CountingBloomFilter, AtomicBloomFilter,
-// Filter, MutableFilter, RemovableFilter, ConcurrentFilter,
-// Bloomable, and BloomError are all in scope.
+// BloomFilter, CountingBloomFilter, AtomicBloomFilter, AtomicCountingBloomFilter,
+// CuckooFilter, ScalableBloomFilter, Filter, MutableFilter, RemovableFilter,
+// ConcurrentFilter, Bloomable, and BloomError are all in scope.
 ```
 
 ## Feature flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `serde` | off | `Serialize` / `Deserialize` on all three filter types |
+| `serde` | off | `Serialize` / `Deserialize` on all filter types |
 
 ```toml
-blume = { version = "0.1", features = ["serde"] }
+blume = { version = "0.2", features = ["serde"] }
 ```
 
 ## Design notes
@@ -238,7 +239,8 @@ blume = { version = "0.1", features = ["serde"] }
   ~30-cycle integer division with a ~3-cycle multiply-and-shift.
 - **Bit packing:** `BloomFilter` packs bits into `u64` words (64 bits/word);
   `CountingBloomFilter` stores one `u8` counter per slot; `AtomicBloomFilter`
-  packs bits into `AtomicU64` words with the same layout as `BloomFilter`.
+  packs bits into `AtomicU64` words with the same layout as `BloomFilter`;
+  `AtomicCountingBloomFilter` stores one `AtomicU8` counter per slot.
 
 [AHash]: https://github.com/tkaitchuck/aHash
 [Kirsch–Mitzenmacher]: https://www.eecs.harvard.edu/~michaelm/postscripts/tr-02-05.pdf
