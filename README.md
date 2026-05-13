@@ -167,7 +167,8 @@ than the standard filter.
 | Type | Thread-safe | Deletion | Growable | Memory | Use when |
 |------|-------------|----------|----------|--------|----------|
 | `BloomFilter` | No | No | No | 1× | fixed capacity, single-threaded |
-| `CountingBloomFilter` | No | Yes | No | 8× | need deletion, single-threaded |
+| `CountingBloomFilter` | No | Yes | No | 8× | deletion, high accuracy |
+| `CuckooFilter` | No | Yes | No | ~1× | deletion, memory-efficient |
 | `AtomicBloomFilter` | Yes | No | No | 1× | concurrent insert + lookup |
 | `ScalableBloomFilter` | No | No | Yes | 1×+ | unknown or unbounded item count |
 
