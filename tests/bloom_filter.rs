@@ -15,7 +15,7 @@
 
 mod common;
 
-use blume::{BloomError, BloomFilter, Filter, MutableFilter};
+use blume::prelude::*;
 use common::data::arb_user_id;
 use proptest::prelude::*;
 use rstest::rstest;
