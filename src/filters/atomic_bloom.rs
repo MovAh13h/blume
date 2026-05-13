@@ -192,6 +192,95 @@ impl AtomicBloomFilter {
             count: AtomicUsize::new(0),
         }
     }
+
+    /// Creates a new filter that is the union of `self` and `other`.
+    ///
+    /// A bit in the result is set if it is set in either filter. The result
+    /// is a snapshot — concurrent inserts to `self` or `other` during the
+    /// merge may or may not be reflected.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BloomError::IncompatibleGeometry`] if the two filters have
+    /// different `m` or `k`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use blume::prelude::*;
+    ///
+    /// let a = AtomicBloomFilter::new(1_000, 0.01).unwrap();
+    /// let b = AtomicBloomFilter::new(1_000, 0.01).unwrap();
+    ///
+    /// a.insert("alice");
+    /// b.insert("bob");
+    ///
+    /// let merged = a.merge(&b).unwrap();
+    /// assert!(merged.contains("alice"));
+    /// assert!(merged.contains("bob"));
+    /// ```
+    pub fn merge(&self, other: &Self) -> Result<Self, BloomError> {
+        if self.m != other.m || self.k != other.k {
+            return Err(BloomError::IncompatibleGeometry {
+                m: (self.m, other.m),
+                k: (self.k, other.k),
+            });
+        }
+        let bits = self.bits.iter()
+            .zip(&other.bits)
+            .map(|(a, b)| AtomicU64::new(a.load(Ordering::Acquire) | b.load(Ordering::Acquire)))
+            .collect();
+        Ok(Self {
+            bits,
+            k: self.k,
+            m: self.m,
+            n: self.n,
+            count: AtomicUsize::new(
+                self.count.load(Ordering::Relaxed) + other.count.load(Ordering::Relaxed),
+            ),
+        })
+    }
+
+    /// Atomically merges all bits from `other` into `self` in place.
+    ///
+    /// Each word is updated with `fetch_or(Release)`, making all of `other`'s
+    /// items visible to subsequent `contains` calls. Safe to call concurrently
+    /// with `insert` and `contains` — no bits are ever cleared.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BloomError::IncompatibleGeometry`] if the two filters have
+    /// different `m` or `k`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use blume::prelude::*;
+    /// use std::sync::Arc;
+    ///
+    /// let dst = Arc::new(AtomicBloomFilter::new(1_000, 0.01).unwrap());
+    /// let src = AtomicBloomFilter::new(1_000, 0.01).unwrap();
+    ///
+    /// dst.insert("alice");
+    /// src.insert("bob");
+    ///
+    /// dst.merge_from(&src).unwrap();
+    /// assert!(dst.contains("alice"));
+    /// assert!(dst.contains("bob"));
+    /// ```
+    pub fn merge_from(&self, other: &Self) -> Result<(), BloomError> {
+        if self.m != other.m || self.k != other.k {
+            return Err(BloomError::IncompatibleGeometry {
+                m: (self.m, other.m),
+                k: (self.k, other.k),
+            });
+        }
+        for (dst, src) in self.bits.iter().zip(&other.bits) {
+            dst.fetch_or(src.load(Ordering::Acquire), Ordering::Release);
+        }
+        self.count.fetch_add(other.count.load(Ordering::Relaxed), Ordering::Relaxed);
+        Ok(())
+    }
 }
 
 impl Filter for AtomicBloomFilter {

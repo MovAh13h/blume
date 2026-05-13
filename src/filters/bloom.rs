@@ -228,6 +228,60 @@ impl BloomFilter {
             count: 0,
         }
     }
+
+    /// Creates a new filter that is the union of `self` and `other`.
+    ///
+    /// A bit in the result is set if it is set in either filter. After
+    /// merging, `contains` returns `true` for any item inserted into
+    /// either source filter.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BloomError::IncompatibleGeometry`] if the two filters have
+    /// different `m` (bit count) or `k` (hash function count). Both filters
+    /// must be constructed with identical parameters to be mergeable — use
+    /// the same `capacity` and `fpr`, or the same `with_params` arguments.
+    ///
+    /// # Item count
+    ///
+    /// The merged filter's `item_count` is the sum of both filters' counts,
+    /// which is an upper bound — items present in both filters are counted
+    /// twice.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use blume::prelude::*;
+    ///
+    /// let mut a = BloomFilter::new(1_000, 0.01).unwrap();
+    /// let mut b = BloomFilter::new(1_000, 0.01).unwrap();
+    ///
+    /// a.insert("alice");
+    /// b.insert("bob");
+    ///
+    /// let merged = a.merge(&b).unwrap();
+    /// assert!(merged.contains("alice"));
+    /// assert!(merged.contains("bob"));
+    ///
+    /// // Filters with different parameters cannot be merged.
+    /// let other = BloomFilter::new(500, 0.01).unwrap();
+    /// assert!(a.merge(&other).is_err());
+    /// ```
+    pub fn merge(&self, other: &Self) -> Result<Self, BloomError> {
+        if self.m != other.m || self.k != other.k {
+            return Err(BloomError::IncompatibleGeometry {
+                m: (self.m, other.m),
+                k: (self.k, other.k),
+            });
+        }
+        Ok(Self {
+            bits: self.bits.iter().zip(&other.bits).map(|(a, b)| a | b).collect(),
+            k: self.k,
+            m: self.m,
+            n: self.n,
+            count: self.count + other.count,
+        })
+    }
 }
 
 impl Filter for BloomFilter {

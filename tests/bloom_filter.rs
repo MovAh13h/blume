@@ -121,6 +121,54 @@ proptest! {
     }
 }
 
+// --- merge ---
+
+/// Merged filter contains items from both source filters.
+#[test]
+fn merge_contains_all_items() {
+    let mut a = BloomFilter::new(1_000, 0.01).unwrap();
+    let mut b = BloomFilter::new(1_000, 0.01).unwrap();
+    a.insert("alice");
+    b.insert("bob");
+
+    let merged = a.merge(&b).unwrap();
+    assert!(merged.contains("alice"));
+    assert!(merged.contains("bob"));
+}
+
+/// Merging with an empty filter produces a filter identical to the original.
+#[test]
+fn merge_with_empty_is_identity() {
+    let mut a = BloomFilter::new(1_000, 0.01).unwrap();
+    let b = BloomFilter::new(1_000, 0.01).unwrap();
+    for i in 0..100u64 { a.insert(&i); }
+
+    let merged = a.merge(&b).unwrap();
+    for i in 0..100u64 {
+        assert!(merged.contains(&i));
+    }
+}
+
+/// `item_count` on the merged filter is the sum of both source counts.
+#[test]
+fn merge_item_count_is_sum() {
+    let mut a = BloomFilter::new(1_000, 0.01).unwrap();
+    let mut b = BloomFilter::new(1_000, 0.01).unwrap();
+    for i in 0..50u64 { a.insert(&i); }
+    for i in 50..100u64 { b.insert(&i); }
+
+    let merged = a.merge(&b).unwrap();
+    assert_eq!(merged.item_count(), 100);
+}
+
+/// Merging filters with different geometries returns an error.
+#[test]
+fn merge_incompatible_returns_error() {
+    let a = BloomFilter::new(1_000, 0.01).unwrap();
+    let b = BloomFilter::new(500, 0.01).unwrap();
+    assert!(matches!(a.merge(&b), Err(BloomError::IncompatibleGeometry { .. })));
+}
+
 // --- is_empty ---
 
 #[test]

@@ -38,6 +38,12 @@ pub enum BloomError {
     /// A filter must use at least one hash function. The value carried is the
     /// count that was provided.
     InvalidHashCount(usize),
+
+    /// Two filters cannot be merged because their geometries differ.
+    ///
+    /// Merging requires identical `m` (bit count) and `k` (hash function count).
+    /// The tuples carry `(self_value, other_value)` for each parameter.
+    IncompatibleGeometry { m: (usize, usize), k: (usize, usize) },
 }
 
 impl PartialEq for BloomError {
@@ -49,6 +55,7 @@ impl PartialEq for BloomError {
             // Treat NaN == NaN so that error values round-trip through equality
             // checks. This diverges from IEEE 754 float equality intentionally.
             (Self::InvalidFpr(a), Self::InvalidFpr(b)) => a == b || (a.is_nan() && b.is_nan()),
+            (Self::IncompatibleGeometry { m: m1, k: k1 }, Self::IncompatibleGeometry { m: m2, k: k2 }) => m1 == m2 && k1 == k2,
             _ => false,
         }
     }
@@ -68,6 +75,9 @@ impl fmt::Display for BloomError {
             }
             BloomError::InvalidHashCount(k) => {
                 write!(f, "hash function count must be > 0, got {k}")
+            }
+            BloomError::IncompatibleGeometry { m: (m1, m2), k: (k1, k2) } => {
+                write!(f, "cannot merge filters with different geometry: m={m1}/{m2}, k={k1}/{k2}")
             }
         }
     }
