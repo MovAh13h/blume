@@ -24,7 +24,7 @@ use serde::{Serialize, de::DeserializeOwned};
 
 /// Serializes `original` to JSON, deserializes it back, and asserts that the
 /// restored filter:
-/// - has identical metadata (`item_count`, `bit_size`, `capacity`, `is_empty`)
+/// - has identical metadata (`item_count`, `bit_size`, `capacity`, `is_empty`, `estimated_fpr`)
 /// - returns `true` for every item in `inserted`
 /// - returns the same `contains` result as `original` for every item in both
 ///   `inserted` and `absent` (guarantees bit-for-bit state equality)
@@ -35,10 +35,11 @@ where
     let json = serde_json::to_string(original).expect("serialization failed");
     let restored: F = serde_json::from_str(&json).expect("deserialization failed");
 
-    assert_eq!(original.item_count(), restored.item_count(), "item_count mismatch");
-    assert_eq!(original.bit_size(),   restored.bit_size(),   "bit_size mismatch");
-    assert_eq!(original.capacity(),   restored.capacity(),   "capacity mismatch");
-    assert_eq!(original.is_empty(),   restored.is_empty(),   "is_empty mismatch");
+    assert_eq!(original.item_count(),    restored.item_count(),    "item_count mismatch");
+    assert_eq!(original.bit_size(),      restored.bit_size(),      "bit_size mismatch");
+    assert_eq!(original.capacity(),      restored.capacity(),      "capacity mismatch");
+    assert_eq!(original.is_empty(),      restored.is_empty(),      "is_empty mismatch");
+    assert_eq!(original.estimated_fpr(), restored.estimated_fpr(), "estimated_fpr mismatch");
 
     for item in inserted {
         assert!(
