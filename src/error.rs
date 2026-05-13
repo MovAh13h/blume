@@ -44,6 +44,24 @@ pub enum BloomError {
     /// Merging requires identical `m` (bit count) and `k` (hash function count).
     /// The tuples carry `(self_value, other_value)` for each parameter.
     IncompatibleGeometry { m: (usize, usize), k: (usize, usize) },
+
+    /// The `growth` factor passed to [`ScalableBloomFilter::with_options`] was
+    /// less than `2`.
+    ///
+    /// A growth factor of at least `2` ensures each new slice is strictly
+    /// larger than the previous one. The value carried is the factor provided.
+    ///
+    /// [`ScalableBloomFilter::with_options`]: crate::ScalableBloomFilter::with_options
+    InvalidGrowthFactor(u32),
+
+    /// The `tightening` ratio passed to [`ScalableBloomFilter::with_options`]
+    /// was outside `(0, 1)`.
+    ///
+    /// The tightening ratio controls how aggressively the per-slice FPR is
+    /// reduced with each new slice. The value carried is the ratio provided.
+    ///
+    /// [`ScalableBloomFilter::with_options`]: crate::ScalableBloomFilter::with_options
+    InvalidTighteningRatio(f64),
 }
 
 impl PartialEq for BloomError {
@@ -56,6 +74,8 @@ impl PartialEq for BloomError {
             // checks. This diverges from IEEE 754 float equality intentionally.
             (Self::InvalidFpr(a), Self::InvalidFpr(b)) => a == b || (a.is_nan() && b.is_nan()),
             (Self::IncompatibleGeometry { m: m1, k: k1 }, Self::IncompatibleGeometry { m: m2, k: k2 }) => m1 == m2 && k1 == k2,
+            (Self::InvalidGrowthFactor(a), Self::InvalidGrowthFactor(b)) => a == b,
+            (Self::InvalidTighteningRatio(a), Self::InvalidTighteningRatio(b)) => a == b || (a.is_nan() && b.is_nan()),
             _ => false,
         }
     }
@@ -78,6 +98,12 @@ impl fmt::Display for BloomError {
             }
             BloomError::IncompatibleGeometry { m: (m1, m2), k: (k1, k2) } => {
                 write!(f, "cannot merge filters with different geometry: m={m1}/{m2}, k={k1}/{k2}")
+            }
+            BloomError::InvalidGrowthFactor(g) => {
+                write!(f, "growth factor must be >= 2, got {g}")
+            }
+            BloomError::InvalidTighteningRatio(r) => {
+                write!(f, "tightening ratio must be in (0, 1), got {r}")
             }
         }
     }

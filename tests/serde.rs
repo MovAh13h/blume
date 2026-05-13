@@ -64,13 +64,14 @@ where
 
 // --- per-filter test generation ---
 
-/// Generates a serde round-trip test module for a filter type.
+/// Generates serde round-trip tests for a filter type.
 ///
-/// Usage: `serde_tests!(module_name, FilterType);`
-///
-/// The filter type must implement `Filter + MutableFilter + Serialize +
-/// DeserializeOwned` and provide `new(capacity, fpr)` and
-/// `with_params(slots, hash_fns)` constructors.
+/// Two forms:
+/// - `serde_tests!(name, Type)` — for filters with a `with_params(bits,
+///   hash_fns)` constructor. Generates 4 tests including `with_params_round_trip`.
+/// - `serde_tests!(name, Type, no_with_params)` — for filters whose expert
+///   constructor has a different signature (e.g. `ScalableBloomFilter`).
+///   Generates the 3 core round-trip tests only.
 macro_rules! serde_tests {
     ($mod_name:ident, $filter:ty) => {
         mod $mod_name {
@@ -81,16 +82,12 @@ macro_rules! serde_tests {
                 <$filter>::new(n, p).unwrap()
             }
 
-            /// An empty filter serializes and deserializes without error and
-            /// reports correct metadata.
             #[test]
             fn empty_round_trip() {
                 let f = make(1_000, 0.01);
                 assert_round_trip(&f, &[], &[]);
             }
 
-            /// A half-full filter round-trips correctly — all inserted items
-            /// are found and the internal state is identical.
             #[test]
             fn half_capacity_round_trip() {
                 let mut f = make(1_000, 0.01);
@@ -100,7 +97,6 @@ macro_rules! serde_tests {
                 assert_round_trip(&f, &items, &absent);
             }
 
-            /// A filter loaded to its design capacity round-trips correctly.
             #[test]
             fn full_capacity_round_trip() {
                 let n = 1_000usize;
@@ -111,14 +107,48 @@ macro_rules! serde_tests {
                 assert_round_trip(&f, &items, &absent);
             }
 
-            /// A filter constructed via `with_params` round-trips correctly,
-            /// verifying that explicit geometry survives serialization.
+            /// Verifies that explicit geometry (`with_params`) survives serialization.
             #[test]
             fn with_params_round_trip() {
                 let mut f = <$filter>::with_params(9_585, 7).unwrap();
                 let items: Vec<u64> = (0..500).collect();
                 for item in &items { f.insert(item); }
                 let absent: Vec<u64> = (1_000_000u64..1_000_500).collect();
+                assert_round_trip(&f, &items, &absent);
+            }
+        }
+    };
+    ($mod_name:ident, $filter:ty, no_with_params) => {
+        mod $mod_name {
+            use blume::prelude::*;
+            use super::assert_round_trip;
+
+            fn make(n: usize, p: f64) -> $filter {
+                <$filter>::new(n, p).unwrap()
+            }
+
+            #[test]
+            fn empty_round_trip() {
+                let f = make(1_000, 0.01);
+                assert_round_trip(&f, &[], &[]);
+            }
+
+            #[test]
+            fn half_capacity_round_trip() {
+                let mut f = make(1_000, 0.01);
+                let items: Vec<u64> = (0..500).collect();
+                for item in &items { f.insert(item); }
+                let absent: Vec<u64> = (1_000_000u64..1_000_500).collect();
+                assert_round_trip(&f, &items, &absent);
+            }
+
+            #[test]
+            fn full_capacity_round_trip() {
+                let n = 1_000usize;
+                let mut f = make(n, 0.01);
+                let items: Vec<u64> = (0..n as u64).collect();
+                for item in &items { f.insert(item); }
+                let absent: Vec<u64> = (1_000_000u64..1_000_000 + n as u64).collect();
                 assert_round_trip(&f, &items, &absent);
             }
         }
@@ -131,3 +161,4 @@ macro_rules! serde_tests {
 serde_tests!(bloom_filter, BloomFilter);
 serde_tests!(counting_filter, CountingBloomFilter);
 serde_tests!(atomic_bloom_filter, AtomicBloomFilter);
+serde_tests!(scalable_bloom_filter, ScalableBloomFilter, no_with_params);
