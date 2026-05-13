@@ -62,6 +62,16 @@ pub enum BloomError {
     ///
     /// [`ScalableBloomFilter::with_options`]: crate::ScalableBloomFilter::with_options
     InvalidTighteningRatio(f64),
+
+    /// A [`CuckooFilter`] insertion failed because the table is too full.
+    ///
+    /// Cuckoo filters can reject insertions when the load factor approaches
+    /// its practical limit (~95%). Construct a larger filter or use a
+    /// [`ScalableBloomFilter`] if unbounded growth is required.
+    ///
+    /// [`CuckooFilter`]: crate::CuckooFilter
+    /// [`ScalableBloomFilter`]: crate::ScalableBloomFilter
+    CapacityExceeded,
 }
 
 impl PartialEq for BloomError {
@@ -76,6 +86,7 @@ impl PartialEq for BloomError {
             (Self::IncompatibleGeometry { m: m1, k: k1 }, Self::IncompatibleGeometry { m: m2, k: k2 }) => m1 == m2 && k1 == k2,
             (Self::InvalidGrowthFactor(a), Self::InvalidGrowthFactor(b)) => a == b,
             (Self::InvalidTighteningRatio(a), Self::InvalidTighteningRatio(b)) => a == b || (a.is_nan() && b.is_nan()),
+            (Self::CapacityExceeded, Self::CapacityExceeded) => true,
             _ => false,
         }
     }
@@ -104,6 +115,9 @@ impl fmt::Display for BloomError {
             }
             BloomError::InvalidTighteningRatio(r) => {
                 write!(f, "tightening ratio must be in (0, 1), got {r}")
+            }
+            BloomError::CapacityExceeded => {
+                write!(f, "cuckoo filter is full — insert failed after maximum evictions")
             }
         }
     }
