@@ -164,11 +164,12 @@ than the standard filter.
 
 ## Filters
 
-| Type | Thread-safe | Deletion | Memory | Use when |
-|------|-------------|----------|--------|----------|
-| `BloomFilter` | No | No | 1× | single-threaded insert + lookup |
-| `CountingBloomFilter` | No | Yes (`remove`) | 8× | single-threaded, need deletion |
-| `AtomicBloomFilter` | Yes | No | 1× | concurrent insert + lookup |
+| Type | Thread-safe | Deletion | Growable | Memory | Use when |
+|------|-------------|----------|----------|--------|----------|
+| `BloomFilter` | No | No | No | 1× | fixed capacity, single-threaded |
+| `CountingBloomFilter` | No | Yes | No | 8× | need deletion, single-threaded |
+| `AtomicBloomFilter` | Yes | No | No | 1× | concurrent insert + lookup |
+| `ScalableBloomFilter` | No | No | Yes | 1×+ | unknown or unbounded item count |
 
 ## Constructors
 

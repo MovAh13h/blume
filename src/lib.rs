@@ -105,5 +105,5 @@ pub(crate) mod math;
 
 pub use bloomable::Bloomable;
 pub use error::BloomError;
-pub use filters::{AtomicBloomFilter, BloomFilter, CountingBloomFilter};
+pub use filters::{AtomicBloomFilter, BloomFilter, CountingBloomFilter, ScalableBloomFilter};
 pub use traits::{ConcurrentFilter, Filter, MutableFilter, RemovableFilter};
